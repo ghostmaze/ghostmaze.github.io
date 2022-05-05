@@ -6,7 +6,7 @@
   <link href="http://ghostmaze.github.io/atom.xml" rel="self"/>
   
   <link href="http://ghostmaze.github.io/"/>
-  <updated>2022-05-03T14:54:57.190Z</updated>
+  <updated>2022-05-05T02:42:32.450Z</updated>
   <id>http://ghostmaze.github.io/</id>
   
   <author>
@@ -15,6 +15,27 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>about</title>
+    <link href="http://ghostmaze.github.io/2022/05/05/about/"/>
+    <id>http://ghostmaze.github.io/2022/05/05/about/</id>
+    <published>2022-05-05T02:41:35.000Z</published>
+    <updated>2022-05-05T02:42:32.450Z</updated>
+    
+    <content type="html"><![CDATA[<p>ghostmaze:web,app,blockchian</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;p&gt;ghostmaze:web,app,blockchian&lt;/p&gt;
+</summary>
+      
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>test</title>
