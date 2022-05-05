@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>Notional Double Counting Free Collateral分析和复现</title>
+    <url>/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/</url>
+    <content><![CDATA[<h2 id="漏洞描述"><a href="#漏洞描述" class="headerlink" title="漏洞描述"></a>漏洞描述</h2><p>​                <a href="https://notional.finance/portfolio/">Notional</a> 简单说来就是一个固定周期，固定利率的借贷池，主要支持Borrow,lend以及Provide Liquidity的功能。在notional v2中有一个free collateral的概念，根据你的free collateral的计算的值可以借贷出相应价值的代币，而这个漏洞就是在free collateral的计算上出现了问题，导致可以双重计数，从而能够以较低的抵押贷出比抵押价值要多的代币出来，利用该漏洞可以掏空整个LP中的所有资金。</p>
+<p><strong>漏洞类型：逻辑</strong></p>
+<p><strong>难度：中等</strong></p>
+<p><strong>赏金：100万刀</strong></p>
+<p><strong>BY：ghostmaze</strong></p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>​            1. 通过分析复现，发现本次漏洞的成因非常简单，就是在用户账户关键参数的读写上存在逻辑问题，导致能够双重计数。顺着调用链分析，首先是调用了<code>enableBitmapCurrency()</code> 来将用户的<code>accountContext.bitmapCurrencyId = currencyId;</code>设置为currencyId。</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115819341.png" alt="image-20220505115819341"></p>
+<p>先看看调用前<code>getAccount()</code>的值：（getAccount()返回的是一个数据结构体，可以跟进分析数据结构）</p>
+<p>[(0, b’\x00’, 0, 0, b’\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00’), [(0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0)], []]</p>
+<p>接下来调用<code>enableBitmapCurrency(1)</code>，将currencyId &#x3D;1 的代币设置为bitmapCurrencyId后：</p>
+<p>[(1641427200, b’\x00’, 0, <strong>1</strong>, b’\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00’), [<strong>(1, 0, 0, 0, 0)</strong>, (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0)], []]</p>
+<p>此处可以看到，<code>accountContext.bitmapCurrencyId</code> 已经被设置成了1，且再次调用<code>getAccount()</code>，可以通过代码知道accountBalances[0]的值已经被赋值，因为此处我们只enable了bitmap，没有deposit任何代币，所以此处accountBalances[0]为**(1, 0, 0, 0, 0)**是没有任何问题的。</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115835637.png" alt="image-20220505115835637"></p>
+<p>2.此时在进行第二步操作，利用<code>depositUnderlyingToken()</code>向我们个人地址中deposit代币，此处用DAI作为例子，DAI的currencyId为2，这个可以直接通过代理合约调用接口查看。</p>
+<p>[(1641427200, b’\x00’, 0, 1, b‘@<strong>\x02</strong>\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00’), [(1, 0, 0, 0, 0), <strong>(2, 18344299339310, 0, 0, 0)</strong>, (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0)], []]</p>
+<p>在充值完成后，查看账户信息，发现</p>
+<p>accountContext.activeCurrencies被赋值b’400200000000000000000000000000000000’</p>
+<p>accountBalances[1]被赋值为了(2, 18344299339310, 0, 0, 0)</p>
+<p><code>accountContext.activeCurrencies</code>变量的修改，来自于<code>depositUnderlyingToken</code>中的 <code>balanceState.finalize(account, accountContext, false);</code>可以跟进看看</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115850384.png" alt="image-20220505115850384"></p>
+<p>在<code>.finalize(account, accountContext, false);</code>中<code>accountContext.setActiveCurrency</code>会将 accountContext.activeCurrencies修改。但这不是重点。</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115903853.png" alt="image-20220505115903853"></p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115915572.png" alt="image-20220505115915572"></p>
+<p>此处查看getAccount()方法，如果<code>accountContext.activeCurrencies</code>存在的话，会去从存储中读取该代币的值，<code>accountBalances = new AccountBalance[](10);</code> accountBalances是一个长度为10数组，如果开始不是很清楚的话为啥是10的话，这个地方就能非常明白，在开启bitmapcurrency第一个数组是用来放账户中ETH的balance数据的，后面的9个数组是用来放其中支持的9种代币的balance数据的，bytes18即每2个字节代表一个代币。</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115927252.png" alt="image-20220505115927252"></p>
+<p>到此，程序都是正常运行的，我们enable了currencyId &#x3D;&#x3D; 1 的ETH，但是没有充值，所以ETH的balance数据为(1, 0, 0, 0, 0)，第二步我们充值了DAI，所以DAI的balance为(2, 18344299339310, 0, 0, 0)，这些都没有问题。</p>
+<p>3.接下来进行第三步，再次enableBitmapCurrency()，此时将DAI的currencyId 作为参数。执行完成后，查看Account。此时发现accountBalances的前两个数组的值变成一样了，也就是说ETH所在的balance被DAI的balance覆盖了。</p>
+<p>[(1641427200, b’\x00’, 0, <strong>2</strong>, b‘@\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00’), [<strong>(2, 18344299339310, 0, 0, 0), (2, 18344299339310, 0, 0, 0)</strong>, (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0)], []]</p>
+<p>同时查看：free_collateral: [<strong>212752332</strong>, [18344299339310, 18344299339310, 0, 0, 0, 0, 0, 0, 0, 0]],发现价值翻倍了。</p>
+<p>再来看看getAccount()中设置ETH balance的代码，**如果accountContext.isBitmapEnabled()，则会以bitmapCurrencyId所代表的代币balance来赋值到accountBalances[0]**。OK，问题就在这里，也就是说通过修改bitmapCurrencyId的值能覆盖ETH所代表的balance位的值，实现double couting。</p>
+<p><img src="/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/image-20220505115940253.png" alt="image-20220505115940253"></p>
+<h2 id="漏洞复现"><a href="#漏洞复现" class="headerlink" title="漏洞复现"></a>漏洞复现</h2><p>对于漏洞的复现，其实步骤很简单。</p>
+<p>npx hardhat node –fork <a href="https://eth-mainnet.alchemyapi.io/v2/your_key">https://eth-mainnet.alchemyapi.io/v2/your_key</a> –fork-block-number 13950000</p>
+<ol>
+<li><p>enableBitmapCurrency(1)  &#x2F;&#x2F;启用bitmap,将ETH设置为bitmapCurrency</p>
+</li>
+<li><p>depositUnderlyingToken(useraddr,2,amount)  &#x2F;&#x2F;充值DAI</p>
+<p>​    此处如果没有DAI，需要先到swap购买DAI，然后approve notional的代理合约地址。</p>
+</li>
+<li><p>enableBitmapCurrency(2)  &#x2F;&#x2F;启用bitmap,将DAI设置为bitmapCurrency</p>
+</li>
+</ol>
+<p>此3步就能完全复现漏洞。</p>
+<p>具体的POC，我是直接用python web3调用的，可以自己构造或者用contract实现或者参考<a href="https://bbs.pediy.com/thread-271655.htm%E3%80%82">https://bbs.pediy.com/thread-271655.htm。</a></p>
+]]></content>
+      <tags>
+        <tag>dapp</tag>
+        <tag>blockchiansec</tag>
+      </tags>
+  </entry>
+</search>

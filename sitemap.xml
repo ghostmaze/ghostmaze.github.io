@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>http://ghostmaze.github.io/2022/05/05/about/</loc>
+    <loc>http://ghostmaze.github.io/2022/05/05/Notional-Double-Counting-Free-Collateral-%E5%88%86%E6%9E%90%E5%92%8C%E5%A4%8D%E7%8E%B0/</loc>
     
     <lastmod>2022-05-05</lastmod>
     
@@ -11,18 +11,27 @@
   </url>
   
   <url>
-    <loc>http://ghostmaze.github.io/2022/05/03/test/</loc>
+    <loc>http://ghostmaze.github.io/categories/index.html</loc>
     
-    <lastmod>2022-05-03</lastmod>
+    <lastmod>2022-05-05</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>http://ghostmaze.github.io/2022/05/03/hello-world/</loc>
+    <loc>http://ghostmaze.github.io/tags/index.html</loc>
     
-    <lastmod>2022-05-03</lastmod>
+    <lastmod>2022-05-05</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ghostmaze.github.io/about/index.html</loc>
+    
+    <lastmod>2022-05-05</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -36,6 +45,20 @@
     <priority>1.0</priority>
   </url>
 
+  
+  <url>
+    <loc>http://ghostmaze.github.io/tags/dapp/</loc>
+    <lastmod>2022-05-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>http://ghostmaze.github.io/tags/blockchiansec/</loc>
+    <lastmod>2022-05-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
   
 
   
